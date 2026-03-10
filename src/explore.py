@@ -1,5 +1,7 @@
 import pandas as pd
 import json
 
+DATA_FILE = "data.jsonl"
+data = pd.read_json(DATA_FILE, lines=True)
 
-dataFrame = pd.DataFrame(json.load(open("data.json", encoding='utf8'))['results'][0]['hits'])
+print(data)
