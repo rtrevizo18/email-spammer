@@ -99,6 +99,6 @@ if __name__ == '__main__':
       f.write(batch)
       # We finished `page` page, so checkpoint should now be next page
       save_checkpoint(page + 1)
-      seconds = random.random() * 5 + 5
+      seconds = random.random() * 5
       print(f"Wrote to {DATA_FILE}. Waiting {seconds} seconds.")
       time.sleep(seconds)
