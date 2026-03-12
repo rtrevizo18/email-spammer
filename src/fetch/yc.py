@@ -24,9 +24,9 @@ FIELDS = [
 ALGOLIA_APP_ID = os.getenv("ALGOLIA_APP_ID")
 ALGOLIA_API_KEY = os.getenv("ALGOLIA_API_KEY")
 
-DATA_FILE = 'data.jsonl'
+DATA_FILE = 'datasets/data.jsonl'
 
-CHECKPOINT_FILE = "checkpoint.json"
+CHECKPOINT_FILE = "yc_checkpoint.json"
 
 def load_checkpoint():
   if os.path.exists(CHECKPOINT_FILE):
