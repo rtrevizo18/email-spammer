@@ -1,6 +1,9 @@
 import pandas as pd
 from urllib.parse import urlparse
+import requests
+import logging
 
+logger = logging.getLogger(__name__)
 
 
 
@@ -45,5 +48,34 @@ def fortune_500_explore():
   cleaned_data.to_json(RESULT_FILE, orient='records', lines=True)
 
 
-if __name__ == '__main__':
-  fortune_500_explore()
+def lucky_search(query):
+  url = "https://www.google.com/search"
+
+  params = {
+    "q": query,
+    "btnI": "I"
+  }
+  try:
+    r = requests.get(url, params=params, allow_redirects=True)
+
+    if not r.ok:
+      raise Exception({
+        "status_code": r.status_code,
+        "message" : r.reason,
+        "on_request" : r.request
+      })
+
+    scraped_url = r.url
+
+    intermed_url = urlparse(scraped_url).query.split('=')[1]
+
+    parsed = urlparse(intermed_url)
+
+    domain = parsed.netloc.replace("www.", "")
+
+    return domain
+  except Exception as e:
+    print(e)
+    logger.error(e)
+
+print(lucky_search("nintendo"))
