@@ -2,6 +2,13 @@ import pandas as pd
 from urllib.parse import urlparse
 import requests
 import logging
+import time
+import json
+import random
+import os
+
+
+random.seed(1234)
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +62,13 @@ def lucky_search(query):
     "q": query,
     "btnI": "I"
   }
+
+  headers = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+  }
+
   try:
-    r = requests.get(url, params=params, allow_redirects=True)
+    r = requests.get(url, params=params, allow_redirects=True, headers=headers)
 
     if not r.ok:
       raise Exception({
@@ -77,5 +89,41 @@ def lucky_search(query):
   except Exception as e:
     print(e)
     logger.error(e)
+    raise e
 
-print(lucky_search("nintendo"))
+def load_houston_and_fetch():
+  DATA_FILE = "datasets/houston.csv"
+  RESULT_FILE = "datasets/houston_domains.jsonl"
+  CHECKPOINT_FILE = "datasets/houston_checkpoint.jsonl"
+
+  data = pd.read_csv(DATA_FILE)
+  companies = data['Company']
+
+  processed = {}
+  if os.path.exists(CHECKPOINT_FILE):
+    with open(CHECKPOINT_FILE, "r") as f:
+      for line in f:
+        entry = json.loads(line)
+        processed[entry["Company"]] = entry["domain"]
+  
+  results = []
+
+  for company in companies:
+    if company in processed:
+      domain = processed[company]
+    else:
+      domain = lucky_search(f"{company} offical website")
+      with open(CHECKPOINT_FILE, "a") as f:
+        f.write(json.dumps({"Company": company, "domain": domain}) + "\n")
+      time.sleep(random.uniform(35, 45))
+    results.append(domain)
+
+  
+  data['domain'] = results
+
+  data.to_json(RESULT_FILE, orient='records', lines=True)
+
+  os.remove(CHECKPOINT_FILE)
+
+if __name__ == '__main__':
+  load_houston_and_fetch()
