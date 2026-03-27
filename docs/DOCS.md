@@ -72,6 +72,33 @@ Then you would create another row that looks like:
 
 And that's it! If you entered everything correctly, all of the information will be queued in our system and eventually sent out!
 
+
+## (WIP) Email
+
+Dear [Employer],
+
+
+Hello, it's nice to meet you, [FirstName]! My name is [EmailerName], and I'm the [EmailerRole] for the University of Houston's largest Computer Science student organization, CougarCS.
+
+CougarCS is an ACM chapter organization committed to the professional development and academic success of our 200+ active members. We provide various services to our students, including company-sponsored career readiness workshops, personalized tutoring sessions, and a wide library of open-source projects built and maintained by our members. We've worked with companies such as Google, Microsoft, and Apple and have partnered with over 50 companies to bring exciting events for our members.
+
+This October from the 10th to 11th, CougarCS will host CodeRED Orion, the University of Houston's largest annual CS hackathon. CodeRED has attracted thousands of creative and determined developers to create innovative software and challenge their collaborative and technical skills in a tight 24-hour window. We see CodeRED as an opportunity for students to learn about new technologies and interact with the greater programming community, and we would love to have [Company] as a sponsor for our hackathon!
+
+As a sponsor, [Company] will have access to several CougarCS and CodeRED perks, such as candid facetime with experienced developers, extensive brand recognition marketing through our social media platforms, and a live environment where users can test your product and provide direct feedback. [Company] can expect no less than a multitude of accomodations and recruitment opportunities from our team, and we aim to deliver a smooth experience from the initial sponsor announcement to the moment our doors close on October 11th.
+
+I would love to set up a quick chat to discuss a potential partnership between CougarCS and [Company]. If you would like to learn more about our organization and hackathon, we have provided links with more information.
+
+LINKS:
+* cougarcs.com
+* codereduh.com
+* mlh.io
+
+Thank you for your time! We look forward to hearing from you soon.
+
+Best regards,
+
+[EmailerName]
+
 ## Final Notes
 
 The backend is still WIP, and I'm aiming to have it out by late next week.
