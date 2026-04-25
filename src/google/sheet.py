@@ -15,7 +15,7 @@ I hope this email finds you well! My name is {{officer}}, and I'm the Corporate 
 
 CougarCS is an ACM chapter organization committed to the professional development and academic success of our 200+ active members. We provide various services to our students, including company-sponsored career readiness workshops, personalized tutoring sessions, and a wide library of open-source projects built and maintained by our members. We've worked with companies such as Google, Microsoft, and Apple, and have partnered with over 50 companies to bring exciting events for our members. Additionally, we host CodeRED, the largest hackathon at UH.
 
-As a sponsor, {{company}} will have access to several CougarCS perks, such as candid facetime with experienced student developers, extensive brand recognition marketing through our social media platforms, and a live environment where users can test your product and provide direct feedback. {{company}} can expect no less than a multitude of accommodations and recruitment opportunities from our team!
+As a sponsor, {{company}} will have access to several CougarCS perks, such as candid facetime with experienced student developers, extensive brand recognition marketing through our social media platforms, and a live environment where users can test your product and provide direct feedback. {{company}} can expect no less than a multitude of recruitment and marketing opportunities from our team!
 
 I would love to set up a quick chat to discuss a potential partnership between CougarCS and {{company}}. If you would like to learn more about our organization, please refer to our website:
       
@@ -85,9 +85,8 @@ def get_gmail_service():
 
 
 def main():
-  sheet_name = os.getenv("SHEET_NAME", "Spring 2026 Email Spammer")
-  sheet_tab = os.getenv("SHEET_TAB", "sheet1")
-  service_account_path = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "credentials.json")
+  sheet_name = "Spring 2026 Email Spammer"
+  service_account_path = "credentials.json"
 
   client = gspread.service_account(filename=service_account_path)
   spreadsheet = client.open(sheet_name)
