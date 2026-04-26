@@ -413,6 +413,9 @@ def main():
 
         except Exception as e:
             logging.exception(e)
+            batch_update_cells(contacts_ws, {
+                f"K{row["ID"]}": str(e)
+            })
             return
 
     if state_changed:
