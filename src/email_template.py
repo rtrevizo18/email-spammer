@@ -1,9 +1,12 @@
 from jinja2 import Template
 
-template = Template("""
+
+SUBJECT_TEMPLATE = Template("CougarCS x {{company}} - Partnership Opportunity")
+
+EMAIL_TEMPLATE = Template("""
 Hi {{first_name}},
 
-I hope this email finds you well! My name is {{officer}}, and I'm the Corporate Relations Director for the University of Houston's largest Computer Science student organization, CougarCS.
+I hope this email finds you well! My name is {{officer}}, and I'm the {{role}} for the University of Houston's largest Computer Science student organization, CougarCS.
 
 CougarCS is an ACM chapter organization committed to the professional development and academic success of our 200+ active members. We provide various services to our students, including company-sponsored career readiness workshops, personalized tutoring sessions, and a wide library of open-source projects built and maintained by our members. We've worked with companies such as Google, Microsoft, and Apple, and have partnered with over 50 companies to bring exciting events for our members. Additionally, we host CodeRED, the largest hackathon at UH.
 
@@ -16,14 +19,19 @@ cougarcs.com
 Thank you for your time! We look forward to hearing from you soon.
 
 Best regards,
-{{officer}}, CougarCS Corporate Relations
+{{officer}}, {{role}}
 """)
 
-def email_creator(contact_first_name, officer_name, company_name):
-  body = template.render(
-    first_name=contact_first_name,
-    officer=officer_name,
-    company=company_name
+def email_creator(contact_first_name, company, officer_name, officer_role):
+  subject = SUBJECT_TEMPLATE.render(
+    company=company
   )
 
-  return body
+  body = EMAIL_TEMPLATE.render(
+    first_name=contact_first_name,
+    officer=officer_name,
+    role=officer_role,
+    company=company
+  )
+
+  return subject, body

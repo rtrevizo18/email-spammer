@@ -27,6 +27,46 @@ GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.compose"
 ]
 
+TOTAL_AMOUNT_PER_DAY = 20
+
+def validate_scheduler(scheduler):
+  columns = ["NextSlotAtUTC", "AmountSent", "Officer", "Role"]
+
+  if len(scheduler) != 1:
+    raise Exception(f"Expected number of rows: 1, Given: {len(scheduler)}")
+  
+  scheduler_row = scheduler[0]
+
+  for col in columns:
+    if col not in scheduler_row:
+      raise Exception(f"Column {col} does not exist on scheduler row.")
+  
+  nextUTC = scheduler_row["NextSlotAtUTC"]
+
+  if not nextUTC:
+    scheduler_row["NextSlotAtUTC"] = datetime.now(timezone.utc).isoformat()
+  
+  dt = datetime.fromisoformat(nextUTC)
+
+  if dt.tzinfo != timezone.utc:
+    raise Exception("Read timestamp does not correspond to UTC timezone.")
+  
+  amount_sent = scheduler_row["AmountSent"]
+
+  if not isinstance(amount_sent, int):
+    raise Exception("AmountSent is not a number.")
+  
+  officer_name = scheduler_row["Officer"]
+
+  if not isinstance(officer_name, str) or len(officer_name) == 0:
+    raise Exception("Officer name is a string.")
+  
+  officer_role = scheduler_row["Role"]
+
+  if not isinstance(officer_role, str) or len(officer_role) == 0:
+    raise Exception("Officer role is a string.")
+
+  return dt, amount_sent, officer_name, officer_role
 
 def create_draft(service, to, subject, body):
   message = f"To: {to}\r\nSubject: {subject}\r\n\r{body}"
@@ -41,6 +81,21 @@ def create_draft(service, to, subject, body):
 
   return service.users().drafts().create(userId="me", body=draft).execute()
 
+def send_draft(service, draft_id):
+    try:
+        sent_message = service.users().drafts().send(
+            userId="me",
+            body={
+                "id": draft_id
+            }
+        ).execute()
+
+        print(f"Draft sent! Message ID: {sent_message['id']}")
+        return sent_message
+
+    except Exception as e:
+        print(f"Error sending draft: {e}")
+        return None
 
 def get_gmail_service():
   creds = None
@@ -69,10 +124,15 @@ class Status(Enum):
   SENT = "SENT"
   FAILED = "FAILED"
 
-def collect_rows():
-  # connect to google sheets and grab sheet
+def get_spreadsheet():
   client = gspread.service_account(filename=SERVICE_ACCOUNT_PATH)
   spreadsheet = client.open(SHEET_NAME)
+  return spreadsheet
+
+
+def collect_rows(spreadsheet):
+  # connect to google sheets and grab sheet
+
   sheet = spreadsheet.sheet1
   # returns rows in dict
   rows = sheet.get_all_records()
@@ -152,72 +212,92 @@ We're going to send between CST 8:00AM - 2:00PM
 For every scheduler 
 """
 
-def validate_scheduler(scheduler):
-  columns = ["NextSlotAtUTC", "AmountSent"]
+def process_new_row(gmail_service, sheet, row, officer_name, officer_role):
+  first_name = row["FirstName"]
+  company = row["Company"]
+  email = row["Email"]
 
-  if len(scheduler) != 1:
-    raise Exception(f"Expected number of rows: 1, Given: {len(scheduler)}")
-  
-  scheduler = scheduler[0]
+  subject, body = email_creator(
+    contact_first_name=first_name,
+    company=company,
+    officer_name=officer_name,
+    officer_role=officer_role
+  )
 
-  for col in columns:
-    if col not in scheduler:
-      raise Exception(f"Column {col} does not exist on scheduler row.")
-  
-  nextUTC = scheduler["NextSlotAtUTC"]
+  draft = create_draft(gmail_service, email, subject, body)
+  print(draft)
 
-  if not nextUTC:
-    scheduler["NextSlotAtUTC"] = datetime.now(timezone.utc).isoformat()
-  
-  dt = datetime.fromisoformat(nextUTC)
+  row_number = row["ID"] + 1
+  draft_id = draft["id"]
 
-  if dt.tzinfo != timezone.utc:
-    raise Exception("Read timestamp does not correspond to UTC timezone")
+  worksheet = sheet.worksheet("Sheet1")
+
+  cell = f"I{row_number}"
+
+  worksheet.update([[draft_id]], cell)
+
+  cell = f"F{row_number}"
+
+  worksheet.update([["DRAFTED"]], cell)
+
+def process_drafted_row(gmail_service, row):
+  approve_send = row.get("ApproveSend")
+
+  if approve_send == "FALSE":
+    return 0
+  # Let's assume it's true fuck it
+  id = row["GID"]
+
+  send_draft(gmail_service, id)
+
+  return 1
+
 
 def main():
   try:
-    rows, scheduler = collect_rows()
-    validate_scheduler(scheduler)
-    print(rows)
-    print(scheduler)
+    sheet = get_spreadsheet()
+    rows, scheduler = collect_rows(sheet)
+    next_time, amount_sheet, officer_name, officer_role = validate_scheduler(scheduler)
+    # print(rows)
+    # print(scheduler)
   except Exception as e:
     logging.exception(e)
     return
   
-  # for row in rows:
-  #   try:
-  #     row = validate_row(row)
+  try:
+    gmail_service = get_gmail_service()
+  except Exception as e:
+    logging.exception(e)
+    return
+  
+  # If amount sent is over TOTAL_AMOUNT_PER_DAY 
+  if amount_sheet >= TOTAL_AMOUNT_PER_DAY: 
+    # If it's same day, gtfo
+    if next_time.date() == datetime.now().date():
+      return
+    # If its not, start that thing! 
+    amount_sheet = 0
+  
+  
+  for row in rows:
+    try:
+      row = validate_row(row)
 
-  #     status = row["Status"]
+      status = row["Status"]
+
+      if status == Status.NEW:
+        process_new_row(gmail_service, sheet, row, officer_name, officer_role)
+        return
+      elif status == Status.DRAFTED:
+        amount_sheet += process_drafted_row(gmail_service, row)
+        return
 
 
-  #   except Exception as e:
-  #     logging.exception(e)
-  #     print(e)
-  #     continue
-
-
-  # first_row = rows[0]
-  # recipient = first_row.get("Email")
-  # if not recipient:
-  #   print("First row is missing Email; cannot create draft.")
-  #   print(first_row)
-  #   return
-
-  # first_name = (first_row.get("FirstName") or "").strip() or "there"  # type: ignore
-  # company = (first_row.get("Company") or "").strip() or "your company"  # type: ignore
-
-  # body = email_creator(
-  #   contact_first_name=first_name,
-  #   officer_name="Ricardo Trevizo",
-  #   company_name=company,
-  # )
-
-  # subject = f"CougarCS x {company} - Partnership Opportunity"
-
-  # gmail_service = get_gmail_service()
-  # draft = create_draft(gmail_service, recipient, subject, body)
-
+    except Exception as e:
+      print(e)
+      # Let's just increment cause I'm scared lol
+      amount_sheet += 1
+      return
 
 if __name__ == "__main__":
   main()
