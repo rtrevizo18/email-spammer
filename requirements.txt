@@ -4,6 +4,8 @@ certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.5
 cryptography==46.0.6
+dnspython==2.8.0
+email-validator==2.3.0
 google-api-core==2.30.3
 google-api-python-client==2.194.0
 google-auth==2.49.1

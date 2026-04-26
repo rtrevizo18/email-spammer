@@ -20,7 +20,6 @@ FIELDS = [
   "status"
 ]
 
-# You can fetch it from the YC website
 ALGOLIA_APP_ID = os.getenv("ALGOLIA_APP_ID")
 ALGOLIA_API_KEY = os.getenv("ALGOLIA_API_KEY")
 

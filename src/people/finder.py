@@ -1,7 +1,6 @@
 import requests
 import dotenv
 import os
-from playwright.sync_api import sync_playwright
 import json
 from bs4 import BeautifulSoup
 
