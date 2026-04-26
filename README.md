@@ -1,2 +1,2 @@
 # email-spammer
-Evil vibe-coded email spammer used for nefarious purposes.
+Evil email spammer used for nefarious purposes.
