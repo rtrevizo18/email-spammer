@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import email_validator
 
 from status import Status
@@ -20,7 +20,7 @@ def validate_scheduler(scheduler):
         last_sent_utc = datetime.now(timezone.utc).isoformat()
 
     dt = datetime.fromisoformat(last_sent_utc)
-    if dt.tzinfo != timezone.utc:
+    if dt.tzinfo is None or dt.utcoffset() != timedelta(0):
         raise Exception("Read timestamp does not correspond to UTC timezone.")
 
     amount_sent = scheduler_row["ActionsPerDay"]
@@ -38,8 +38,18 @@ def validate_scheduler(scheduler):
     return dt, amount_sent, officer_name, officer_role
 
 def validate_email(email):
-    email_info = email_validator.validate_email(email, check_deliverability=True)
-    return email_info.normalized
+    # Emails can either be single value or comma-seperated list of emails
+    # If the email contains a comma, then consider it a list for parsing
+    email = email.strip()
+    email_list = email.split(',')
+    norm_emails = []
+    for em in email_list:
+        trimmed_em = em.strip()
+        print(trimmed_em)
+        validated_email = email_validator.validate_email(trimmed_em, check_deliverability=True)
+        norm_emails.append(validated_email.normalized)
+    # returns comma-sep list, preferred format for gmail
+    return ", ".join(norm_emails)
 
 def validate_contact(row):
     columns = ["Company", "FirstName", "LastName", "Email"]
@@ -81,14 +91,13 @@ def is_blank(value):
 
 
 def is_empty_row(row):
-    if is_blank(row.get("ID")):
-        return False
-
     content_columns = [
         "Company",
         "FirstName",
         "LastName",
         "Email",
     ]
+    if is_blank(row.get("ID")):
+        return all(is_blank(row.get(column)) for column in content_columns)
 
     return all(is_blank(row.get(column)) for column in content_columns)
