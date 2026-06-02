@@ -24,10 +24,10 @@ dotenv.load_dotenv()
 SHEET_NAME = "Spring 2026 Email Spammer Test"
 SERVICE_ACCOUNT_PATH = "credentials.json"
 
-GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.compose"]
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
 TOTAL_AMOUNT_PER_DAY = int(os.getenv("TOTAL_AMOUNT_PER_DAY", "20"))
-MAX_DRAFTS_PER_RUN = int(os.getenv("MAX_DRAFTS_PER_RUN", "3"))
+MAX_SCHEDULES_PER_RUN = int(os.getenv("MAX_SCHEDULES_PER_RUN", "3"))
 MAX_SENDS_PER_RUN = int(os.getenv("MAX_SENDS_PER_RUN", "1"))
 MIN_MINUTES_BETWEEN_SENDS = int(os.getenv("MIN_MINUTES_BETWEEN_SENDS", "20"))
 SCHEDULE_LEAD_MINUTES = int(os.getenv("SCHEDULE_LEAD_MINUTES", "5"))
@@ -70,29 +70,27 @@ def next_send_time(after_utc):
     return candidate.astimezone(timezone.utc)
 
 
-def create_draft(service, to, subject, body):
+def build_message(to, subject, body):
     msg = EmailMessage()
 
     msg["To"] = to
     msg["Subject"] = subject
-
     msg.set_content(body, subtype="html")
-    raw = msg.as_bytes()
-    print(raw.decode())
+
     encoded = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    draft = {"message": {"raw": encoded}}
-    return service.users().drafts().create(userId="me", body=draft).execute()
+    return {"raw": encoded}
 
 
-def send_draft(service, draft_id):
+def send_message(service, to, subject, body):
     try:
-        sent_message = service.users().drafts().send(
-            userId="me", body={"id": draft_id}
+        message = build_message(to, subject, body)
+        sent_message = service.users().messages().send(
+            userId="me", body=message
         ).execute()
-        print(f"Draft sent! Message ID: {sent_message['id']}")
+        print(f"Message sent! Message ID: {sent_message['id']}")
         return sent_message
     except Exception as e:
-        print(f"Error sending draft: {e}")
+        print(f"Error sending message: {e}")
         return None
 
 
@@ -167,37 +165,9 @@ def compute_schedule_time(last_sent_utc):
     return next_send_time(max(minimum_next_from_last_send, minimum_next_from_now))
 
 
-def process_new_row(gmail_service, contacts_ws, row, officer_name, officer_role):
-    subject, body = email_creator(
-        contact_first_name=row["FirstName"],
-        company=row["Company"],
-        officer_name=officer_name,
-        officer_role=officer_role,
-    )
-
-    draft = create_draft(gmail_service, row["Email"], subject, body)
-
-    current_row_number = row_number(row)
-    batch_update_cells(
-        contacts_ws,
-        {
-            f"I{current_row_number}": draft["id"],
-            f"F{current_row_number}": Status.DRAFTED.value,
-        },
-    )
-
-
-def process_drafted_row(sheet, row, last_sent_utc):
-    if row.get("ApproveSend") != "TRUE":
-        return False
-
-    draft_id = row.get("DraftID")
-    if not draft_id:
-        return False
-
+def process_new_row(contacts_ws, row, last_sent_utc):
     scheduled_time = compute_schedule_time(last_sent_utc)
 
-    contacts_ws = sheet.worksheet("Sheet1")
     current_row_number = row_number(row)
     batch_update_cells(
         contacts_ws,
@@ -206,16 +176,12 @@ def process_drafted_row(sheet, row, last_sent_utc):
             f"F{current_row_number}": Status.SCHEDULED.value,
         },
     )
-    return True
+    return scheduled_time
 
 
-def process_scheduled_row(gmail_service, contacts_ws, row):
+def process_scheduled_row(gmail_service, contacts_ws, row, officer_name, officer_role):
     scheduled_at_text = row.get("ScheduledAtUTC")
     if not scheduled_at_text:
-        return False
-
-    draft_id = row.get("DraftID")
-    if not draft_id:
         return False
 
     scheduled_at = datetime.fromisoformat(scheduled_at_text)
@@ -229,7 +195,14 @@ def process_scheduled_row(gmail_service, contacts_ws, row):
     if not is_within_send_window(now_utc):
         return False
 
-    sent = send_draft(gmail_service, draft_id)
+    subject, body = email_creator(
+        contact_first_name=row["FirstName"],
+        company=row["Company"],
+        officer_name=officer_name,
+        officer_role=officer_role,
+    )
+
+    sent = send_message(gmail_service, row["Email"], subject, body)
     if not sent:
         return False
 
@@ -273,7 +246,7 @@ def main():
     contacts_ws = sheet.worksheet("Sheet1")
     last_sent_row_id = get_last_sent_row_id(sheet)
 
-    drafts_created = 0
+    schedules_made = 0
     sends_made = 0
     state_changed = False
 
@@ -318,23 +291,11 @@ def main():
             row = validators.validate_row(row)
             status = row["Status"]
 
-            if status == Status.NEW and drafts_created < MAX_DRAFTS_PER_RUN:
-                process_new_row(
-                    gmail_service,
-                    contacts_ws,
-                    row,
-                    officer_name,
-                    officer_role,
-                )
-                drafts_created += 1
+            if status == Status.NEW and schedules_made < MAX_SCHEDULES_PER_RUN:
+                scheduled_time = process_new_row(contacts_ws, row, last_sent_utc)
+                last_sent_utc = scheduled_time
+                schedules_made += 1
                 state_changed = True
-                continue
-
-            if status == Status.DRAFTED:
-                did_schedule = process_drafted_row(sheet, row, last_sent_utc)
-                if did_schedule:
-                    last_sent_utc = compute_schedule_time(last_sent_utc)
-                    state_changed = True
                 continue
 
             if (
@@ -342,7 +303,13 @@ def main():
                 and sends_made < MAX_SENDS_PER_RUN
                 and actions_per_day < TOTAL_AMOUNT_PER_DAY
             ):
-                was_sent = process_scheduled_row(gmail_service, contacts_ws, row)
+                was_sent = process_scheduled_row(
+                    gmail_service,
+                    contacts_ws,
+                    row,
+                    officer_name,
+                    officer_role,
+                )
                 if was_sent:
                     sends_made += 1
                     actions_per_day += 1

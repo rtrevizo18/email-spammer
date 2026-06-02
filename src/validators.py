@@ -73,6 +73,8 @@ def validate_row(row):
     status = validated_contact_row.get("Status")
     if not status:
         status = Status.NEW.value
+    elif status == "DRAFTED":
+        status = Status.NEW.value
 
     try:
         validated_contact_row["Status"] = Status(status)

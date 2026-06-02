@@ -14,7 +14,7 @@ The purpose of the company scraping is to keep us organized: By keeping a concre
 
 With a big list of companies, we're gonna manually look for contacts for each company. We're gonna pull up the most likely possible email combinations for each company and email about 3-5 folks from each company, using LinkedIn/Google search results. Grab the data, and collect the data into a Google Sheet, which will be pulled into a server.
 
-The server will take care of automating the email sending, which will be about 30-50 emails a day. It'll do some simple verification, queuing, time/timezone checking, and have the ability to review and edit emails before they go out.
+The server will take care of automating the email sending, which will be about 30-50 emails a day. It'll do some simple verification, queuing, time/timezone checking, and schedule emails to go out within the allowed window.
 
 ## Instructions
 
