@@ -172,7 +172,7 @@ def process_new_row(contacts_ws, row, last_sent_utc):
     batch_update_cells(
         contacts_ws,
         {
-            f"J{current_row_number}": scheduled_time.isoformat(),
+            f"H{current_row_number}": scheduled_time.isoformat(),
             f"F{current_row_number}": Status.SCHEDULED.value,
         },
     )
@@ -228,11 +228,19 @@ def main():
     try:
         sheet = get_spreadsheet()
         rows, scheduler = collect_rows(sheet)
-        last_sent_utc, actions_per_day, officer_name, officer_role = validators.validate_scheduler(
-            scheduler
-        )
+        (
+            last_sent_utc,
+            actions_per_day,
+            officer_name,
+            officer_role,
+            stop_action,
+        ) = validators.validate_scheduler(scheduler)
     except Exception as e:
         logging.exception(e)
+        return
+
+    if stop_action:
+        logging.info("StopAction is enabled; stopping execution.")
         return
 
     actions_per_day = reset_daily_counter_if_new_day(last_sent_utc, actions_per_day)
@@ -272,7 +280,7 @@ def main():
             batch_update_cells(
                 contacts_ws,
                 {
-                    f"K{row_index}": "Invalid ID; row skipped.",
+                    f"I{row_index}": "Invalid ID; row skipped.",
                 },
             )
             continue
@@ -333,7 +341,7 @@ def main():
             logging.exception(e)
             row_id = row_number(row)
             batch_update_cells(contacts_ws, {
-                f"K{row_id}": str(e)
+                f"I{row_id}": str(e)
             })
             return
 

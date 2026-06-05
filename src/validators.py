@@ -4,7 +4,7 @@ import email_validator
 from status import Status
 
 def validate_scheduler(scheduler):
-    columns = ["LastSentAtUTC", "ActionsPerDay", "Officer", "Role"]
+    columns = ["LastSentAtUTC", "ActionsPerDay", "Officer", "Role", "StopAction"]
 
     if len(scheduler) != 1:
         raise Exception(f"Expected number of rows: 1, Given: {len(scheduler)}")
@@ -35,7 +35,25 @@ def validate_scheduler(scheduler):
     if not isinstance(officer_role, str) or len(officer_role) == 0:
         raise Exception("Officer role is not a non-empty string.")
 
-    return dt, amount_sent, officer_name, officer_role
+    stop_action = scheduler_row.get("StopAction")
+    if isinstance(stop_action, bool):
+        stop_action_value = stop_action
+    elif stop_action is None:
+        stop_action_value = False
+    elif isinstance(stop_action, str):
+        normalized = stop_action.strip().lower()
+        if normalized in ("true", "yes", "1"):
+            stop_action_value = True
+        elif normalized in ("false", "no", "0", ""):
+            stop_action_value = False
+        else:
+            raise Exception("StopAction is not a boolean value.")
+    elif isinstance(stop_action, (int, float)):
+        stop_action_value = stop_action != 0
+    else:
+        raise Exception("StopAction is not a boolean value.")
+
+    return dt, amount_sent, officer_name, officer_role, stop_action_value
 
 def validate_email(email):
     # Emails can either be single value or comma-seperated list of emails
