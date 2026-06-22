@@ -24,7 +24,10 @@ dotenv.load_dotenv()
 SHEET_NAME = "Spring 2026 Email Spammer Test"
 SERVICE_ACCOUNT_PATH = "credentials.json"
 
-GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+GMAIL_SCOPES = [
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.settings.basic",
+]
 
 TOTAL_AMOUNT_PER_DAY = int(os.getenv("TOTAL_AMOUNT_PER_DAY", "20"))
 MAX_SCHEDULES_PER_RUN = int(os.getenv("MAX_SCHEDULES_PER_RUN", "3"))
@@ -34,6 +37,8 @@ SCHEDULE_LEAD_MINUTES = int(os.getenv("SCHEDULE_LEAD_MINUTES", "5"))
 CENTRAL_TZ = ZoneInfo("America/Chicago")
 SEND_WINDOW_START_HOUR = 6
 SEND_WINDOW_END_HOUR = 17
+
+
 
 
 def is_within_send_window(now_utc):
@@ -117,6 +122,24 @@ def get_gmail_service():
     return build("gmail", "v1", credentials=creds)
 
 
+def get_gmail_signature(gmail_service, send_as_email=None):
+    send_as_list = gmail_service.users().settings().sendAs().list(userId="me").execute()
+    aliases = send_as_list.get("sendAs", [])
+
+    if send_as_email:
+        alias = next(
+            (item for item in aliases if item.get("sendAsEmail") == send_as_email),
+            None,
+        )
+    else:
+        alias = next((item for item in aliases if item.get("isPrimary")), None)
+
+    if not alias and aliases:
+        alias = aliases[0]
+
+    return (alias or {}).get("signature", "")
+
+
 def get_spreadsheet():
     client = gspread.service_account(filename=SERVICE_ACCOUNT_PATH)
     return client.open(SHEET_NAME)
@@ -179,7 +202,14 @@ def process_new_row(contacts_ws, row, last_sent_utc):
     return scheduled_time
 
 
-def process_scheduled_row(gmail_service, contacts_ws, row, officer_name, officer_role):
+def process_scheduled_row(
+    gmail_service,
+    contacts_ws,
+    row,
+    officer_name,
+    officer_role,
+    signature_html,
+):
     scheduled_at_text = row.get("ScheduledAtUTC")
     if not scheduled_at_text:
         return False
@@ -200,6 +230,7 @@ def process_scheduled_row(gmail_service, contacts_ws, row, officer_name, officer
         company=row["Company"],
         officer_name=officer_name,
         officer_role=officer_role,
+        signature_html=signature_html,
     )
 
     sent = send_message(gmail_service, row["Email"], subject, body)
@@ -250,6 +281,12 @@ def main():
     except Exception as e:
         logging.exception(e)
         return
+
+    try:
+        signature_html = get_gmail_signature(gmail_service)
+    except Exception as e:
+        logging.exception(e)
+        signature_html = ""
 
     contacts_ws = sheet.worksheet("Sheet1")
     last_sent_row_id = get_last_sent_row_id(sheet)
@@ -317,6 +354,7 @@ def main():
                     row,
                     officer_name,
                     officer_role,
+                    signature_html,
                 )
                 if was_sent:
                     sends_made += 1

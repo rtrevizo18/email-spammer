@@ -38,13 +38,18 @@ EMAIL_TEMPLATE = Template("""
 
     <p>Thank you for your time! We look forward to hearing from you soon.</p>
 
-    <p>Best regards,<br />
-    {{officer}}, {{role}}</p>
+    {{signature_html | safe}}
   </body>
 </html>
 """)
 
-def email_creator(contact_first_name, company, officer_name, officer_role):
+def email_creator(
+  contact_first_name,
+  company,
+  officer_name,
+  officer_role,
+  signature_html=""
+):
   subject = SUBJECT_TEMPLATE.render(
     company=company
   )
@@ -53,7 +58,8 @@ def email_creator(contact_first_name, company, officer_name, officer_role):
     first_name=contact_first_name,
     officer=officer_name,
     role=officer_role,
-    company=company
+    company=company,
+    signature_html=signature_html,
   )
 
   return subject, body
