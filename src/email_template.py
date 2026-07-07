@@ -41,7 +41,8 @@ EMAIL_TEMPLATE = Template("""
 
 
     <p>Thank you for your time! We look forward to hearing from you soon.</p>
-
+                          
+    <p>Best,</p>
     {{signature_html | safe}}
   </body>
 </html>
