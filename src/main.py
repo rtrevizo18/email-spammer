@@ -21,7 +21,6 @@ import validators
 
 dotenv.load_dotenv()
 
-SHEET_NAME = "Spring 2026 Email Spammer Test"
 SERVICE_ACCOUNT_PATH = "credentials.json"
 
 GMAIL_SCOPES = [
@@ -29,16 +28,20 @@ GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.settings.basic",
 ]
 
-TOTAL_AMOUNT_PER_DAY = int(os.getenv("TOTAL_AMOUNT_PER_DAY", "20"))
+PROD_ENV = os.getenv("PROD_ENV") == "TRUE"
+TOTAL_AMOUNT_PER_DAY = int(os.getenv("TOTAL_AMOUNT_PER_DAY", "10"))
 MAX_SCHEDULES_PER_RUN = int(os.getenv("MAX_SCHEDULES_PER_RUN", "3"))
 MAX_SENDS_PER_RUN = int(os.getenv("MAX_SENDS_PER_RUN", "1"))
-MIN_MINUTES_BETWEEN_SENDS = int(os.getenv("MIN_MINUTES_BETWEEN_SENDS", "20"))
+MIN_MINUTES_BETWEEN_SENDS = int(os.getenv("MIN_MINUTES_BETWEEN_SENDS", "40"))
 SCHEDULE_LEAD_MINUTES = int(os.getenv("SCHEDULE_LEAD_MINUTES", "5"))
 CENTRAL_TZ = ZoneInfo("America/Chicago")
 SEND_WINDOW_START_HOUR = 6
 SEND_WINDOW_END_HOUR = 17
 
-
+if PROD_ENV:
+    SHEET_NAME = "Spring 2026 Email Spammer"
+else:
+    SHEET_NAME = "Spring 2026 Email Spammer Test"
 
 
 def is_within_send_window(now_utc):
@@ -227,6 +230,7 @@ def process_scheduled_row(
 
     subject, body = email_creator(
         contact_first_name=row["FirstName"],
+        contact_last_name=row["LastName"],
         company=row["Company"],
         officer_name=officer_name,
         officer_role=officer_role,
