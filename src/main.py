@@ -5,6 +5,7 @@ import dotenv
 import base64
 import logging
 import time
+from pathlib import Path
 from email.message import EmailMessage
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -18,6 +19,9 @@ import gspread
 from email_template import email_creator
 from status import Status
 import validators
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+os.chdir(PROJECT_ROOT)
 
 dotenv.load_dotenv()
 
