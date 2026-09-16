@@ -48,6 +48,43 @@ EMAIL_TEMPLATE = Template("""
 </html>
 """)
 
+MIXER_SUBJECT_TEMPLATE = Template("CougarCS x {{company}} - Campus Career Mixer Invite")
+
+MIXER_EMAIL_TEMPLATE = Template("""
+<html>
+  <body>
+    <p>Hi {{first_name}} {{last_name}},</p>
+
+    <p>
+      I hope this email finds you well! My name is {{officer}}, and I'm the {{role}} for
+      the University of Houston's largest Computer Science student organization, CougarCS.
+      CougarCS is an ACM chapter organization with 200+ active members, and we're committed
+      to the professional and academic success of our students through company-sponsored
+      events, tailor-made tutoring workshops, and CodeRED, the University of Houston's largest
+      hackathon experience.
+    </p>
+                          
+    <p>
+      I'm emailing you today because we want to formally invite {{company}} to our first-ever career
+      mixer! This exclusive networking event gives {{company}} an opportunity to network with
+      industry-ready tech students and get a recruitment foothold on the University of Houston campus.
+    </p>
+
+    <p>
+      We'll be providing food, parking, and additional amenities at no cost to you. Just show up,
+      and we'll handle the rest!
+    </p>
+
+
+    <p>Please let us know if {{company}} would be interested, and we can set up a quick chat to discuss more details. Thank you for your time!</p>
+                          
+    <p>Best,</p>
+    {{signature_html | safe}}
+  </body>
+</html>
+""")
+
+
 def email_creator(
   contact_first_name,
   contact_last_name,
@@ -70,3 +107,26 @@ def email_creator(
   )
 
   return subject, body
+
+def mixer_email_creator(
+  contact_first_name,
+  contact_last_name,
+  company,
+  officer_name,
+  officer_role,
+  signature_html="" 
+):
+  subject = MIXER_SUBJECT_TEMPLATE.render(
+    company=company
+  )
+
+  body = MIXER_EMAIL_TEMPLATE.render(
+    first_name=contact_first_name,
+    last_name=contact_last_name,
+    officer=officer_name,
+    role=officer_role,
+    company=company,
+    signature_html=signature_html,
+  )
+
+  return subject, body 

@@ -16,7 +16,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import gspread
 # file imports
-from email_template import email_creator
+from email_template import email_creator, mixer_email_creator
 from status import Status
 import validators
 
@@ -33,14 +33,16 @@ GMAIL_SCOPES = [
 ]
 
 PROD_ENV = os.getenv("PROD_ENV") == "TRUE"
-TOTAL_AMOUNT_PER_DAY = int(os.getenv("TOTAL_AMOUNT_PER_DAY", "10"))
-MAX_SCHEDULES_PER_RUN = int(os.getenv("MAX_SCHEDULES_PER_RUN", "3"))
-MAX_SENDS_PER_RUN = int(os.getenv("MAX_SENDS_PER_RUN", "1"))
-MIN_MINUTES_BETWEEN_SENDS = int(os.getenv("MIN_MINUTES_BETWEEN_SENDS", "40"))
-SCHEDULE_LEAD_MINUTES = int(os.getenv("SCHEDULE_LEAD_MINUTES", "5"))
+TOTAL_AMOUNT_PER_DAY = int(os.getenv("TOTAL_AMOUNT_PER_DAY", "20"))
+MAX_SCHEDULES_PER_RUN = int(os.getenv("MAX_SCHEDULES_PER_RUN", "5"))
+MAX_SENDS_PER_RUN = int(os.getenv("MAX_SENDS_PER_RUN", "3"))
+MIN_MINUTES_BETWEEN_SENDS = int(os.getenv("MIN_MINUTES_BETWEEN_SENDS", "20"))
+SCHEDULE_LEAD_MINUTES = int(os.getenv("SCHEDULE_LEAD_MINUTES", "10"))
 CENTRAL_TZ = ZoneInfo("America/Chicago")
 SEND_WINDOW_START_HOUR = 6
 SEND_WINDOW_END_HOUR = 17
+
+PDF_PATH = "public/CougarCS_Mixer_Invite.pdf"
 
 if PROD_ENV:
     SHEET_NAME = "Spring 2026 Email Spammer"
@@ -82,20 +84,34 @@ def next_send_time(after_utc):
     return candidate.astimezone(timezone.utc)
 
 
-def build_message(to, subject, body):
+def build_message(to, subject, body, pdf_path=None):
     msg = EmailMessage()
 
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(body, subtype="html")
 
+    if pdf_path:
+        with open(pdf_path, "rb") as f:
+            pdf_data = f.read()
+
+            msg.add_attachment(
+                pdf_data,
+                maintype="application",
+                subtype="pdf",
+                filename="CougarCS_Mixer_Invite.pdf"
+            )
+
     encoded = base64.urlsafe_b64encode(msg.as_bytes()).decode()
     return {"raw": encoded}
 
 
-def send_message(service, to, subject, body):
+def send_message(service, to, subject, body, mixer=False):
     try:
-        message = build_message(to, subject, body)
+        if mixer:
+            message = build_message(to, subject, body, pdf_path=PDF_PATH)
+        else:
+            message = build_message(to, subject, body)
         sent_message = service.users().messages().send(
             userId="me", body=message
         ).execute()
@@ -232,16 +248,27 @@ def process_scheduled_row(
     if not is_within_send_window(now_utc):
         return False
 
-    subject, body = email_creator(
-        contact_first_name=row["FirstName"],
-        contact_last_name=row["LastName"],
-        company=row["Company"],
-        officer_name=officer_name,
-        officer_role=officer_role,
-        signature_html=signature_html,
-    )
+    for_mixer = row["Mixer"] == "TRUE"
+    if for_mixer:
+        subject, body = mixer_email_creator(
+            contact_first_name=row["FirstName"],
+            contact_last_name=row["LastName"],
+            company=row["Company"],
+            officer_name=officer_name,
+            officer_role=officer_role,
+            signature_html=signature_html, 
+        )
+    else:
+        subject, body = email_creator(
+            contact_first_name=row["FirstName"],
+            contact_last_name=row["LastName"],
+            company=row["Company"],
+            officer_name=officer_name,
+            officer_role=officer_role,
+            signature_html=signature_html,
+        )
 
-    sent = send_message(gmail_service, row["Email"], subject, body)
+    sent = send_message(gmail_service, row["Email"], subject, body, for_mixer)
     if not sent:
         return False
 
