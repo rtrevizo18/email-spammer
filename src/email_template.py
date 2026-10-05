@@ -48,7 +48,7 @@ EMAIL_TEMPLATE = Template("""
 </html>
 """)
 
-MIXER_SUBJECT_TEMPLATE = Template("CougarCS x {{company}} - Campus Career Mixer Invite")
+MIXER_SUBJECT_TEMPLATE = Template("CodeRED x {{company}} - Career Mixer Invite")
 
 MIXER_EMAIL_TEMPLATE = Template("""
 <html>
@@ -58,26 +58,22 @@ MIXER_EMAIL_TEMPLATE = Template("""
     <p>
       I hope this email finds you well! My name is {{officer}}, and I'm the {{role}} for
       the University of Houston's largest Computer Science student organization, CougarCS.
-      CougarCS is an ACM chapter organization with 200+ active members, and we're committed
-      to the professional and academic success of our students through company-sponsored
-      events, tailor-made tutoring workshops, and CodeRED, the University of Houston's largest
-      hackathon experience.
-    </p>
-                          
-    <p>
-      I'm emailing you today because we want to formally invite {{company}} to our first-ever career
-      mixer! This exclusive networking event gives {{company}} an opportunity to network with
-      industry-ready tech students and get a recruitment foothold on the University of Houston campus.
     </p>
 
     <p>
-      We'll be providing food, parking, and additional amenities at no cost to you. Just show up,
-      and we'll handle the rest!
+      I'm emailing you today because we want to formally invite {{company}} to CodeRED's career
+      mixer! This networking event gives {{company}} an opportunity to connect with
+      industry-ready tech students and gain a recruiting foothold on the University of Houston campus.
     </p>
 
+    <p>
+      The mixer will take place on October 10th from 9:00 AM to 11:30 AM, and our amenities will
+      include shirts, plushies, and food! Let us know if you are interested, and we can send over
+      more details about the event.
+    </p>
 
-    <p>Please let us know if {{company}} would be interested, and we can set up a quick chat to discuss more details. Thank you for your time!</p>
-                          
+    <p>We hope to see you there!</p>
+
     <p>Best,</p>
     {{signature_html | safe}}
   </body>

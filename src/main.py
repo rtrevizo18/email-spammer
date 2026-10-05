@@ -47,8 +47,6 @@ CENTRAL_TZ = ZoneInfo("America/Chicago")
 SEND_WINDOW_START_HOUR = 6
 SEND_WINDOW_END_HOUR = 17
 
-PDF_PATH = "public/CougarCS_Mixer_Invite.pdf"
-
 if PROD_ENV:
     SHEET_NAME = "Spring 2026 Email Spammer"
 else:
@@ -89,34 +87,20 @@ def next_send_time(after_utc):
     return candidate.astimezone(timezone.utc)
 
 
-def build_message(to, subject, body, pdf_path=None):
+def build_message(to, subject, body):
     msg = EmailMessage()
 
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(body, subtype="html")
 
-    if pdf_path:
-        with open(pdf_path, "rb") as f:
-            pdf_data = f.read()
-
-            msg.add_attachment(
-                pdf_data,
-                maintype="application",
-                subtype="pdf",
-                filename="CougarCS_Mixer_Invite.pdf"
-            )
-
     encoded = base64.urlsafe_b64encode(msg.as_bytes()).decode()
     return {"raw": encoded}
 
 
-def send_message(service, to, subject, body, mixer=False):
+def send_message(service, to, subject, body):
     try:
-        if mixer:
-            message = build_message(to, subject, body, pdf_path=PDF_PATH)
-        else:
-            message = build_message(to, subject, body)
+        message = build_message(to, subject, body)
         sent_message = service.users().messages().send(
             userId="me", body=message
         ).execute()
@@ -273,7 +257,7 @@ def process_scheduled_row(
             signature_html=signature_html,
         )
 
-    sent = send_message(gmail_service, row["Email"], subject, body, for_mixer)
+    sent = send_message(gmail_service, row["Email"], subject, body)
     if not sent:
         return False
 
