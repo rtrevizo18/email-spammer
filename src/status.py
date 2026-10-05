@@ -5,3 +5,4 @@ class Status(Enum):
     SCHEDULED = "SCHEDULED"
     SENT = "SENT"
     FAILED = "FAILED"
+    BOUNCED = "BOUNCED"

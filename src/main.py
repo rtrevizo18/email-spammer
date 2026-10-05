@@ -19,6 +19,9 @@ import gspread
 from email_template import email_creator, mixer_email_creator
 from status import Status
 import validators
+import gmail_bounces
+import ramp
+import suppression
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 os.chdir(PROJECT_ROOT)
@@ -30,6 +33,8 @@ SERVICE_ACCOUNT_PATH = "credentials.json"
 GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.settings.basic",
+    # Read-only access lets us scan Mailer-Daemon notices for bounces.
+    "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
 PROD_ENV = os.getenv("PROD_ENV") == "TRUE"
@@ -310,6 +315,9 @@ def main():
         return
 
     actions_per_day = reset_daily_counter_if_new_day(last_sent_utc, actions_per_day)
+    daily_cap = ramp.daily_cap(TOTAL_AMOUNT_PER_DAY)
+
+    contacts_ws = sheet.worksheet("Sheet1")
 
     try:
         gmail_service = get_gmail_service()
@@ -323,7 +331,33 @@ def main():
         logging.exception(e)
         signature_html = ""
 
-    contacts_ws = sheet.worksheet("Sheet1")
+    known_addresses = {
+        addr.strip().lower()
+        for row in rows
+        for addr in str(row.get("Email", "")).split(",")
+        if addr.strip()
+    }
+
+    try:
+        marked = suppression.apply_bounces(
+            rows,
+            gmail_bounces.fetch_bounces(gmail_service, known_addresses),
+            lambda cells: batch_update_cells(contacts_ws, cells),
+            row_number,
+        )
+        logging.info("Marked %s contacts as bounced.", marked)
+    except Exception as e:
+        # Never send without a fresh bounce scan. If this is a Gmail 403,
+        # delete token.json so the new gmail.readonly scope gets authorized.
+        logging.exception(e)
+        return
+
+    healthy, health_message = suppression.check_health(rows)
+    logging.info("Sender health: %s", health_message)
+    if not healthy:
+        logging.error("Kill switch tripped; not sending. %s", health_message)
+        return
+
     last_sent_row_id = get_last_sent_row_id(sheet)
 
     schedules_made = 0
@@ -381,7 +415,7 @@ def main():
             if (
                 status == Status.SCHEDULED
                 and sends_made < MAX_SENDS_PER_RUN
-                and actions_per_day < TOTAL_AMOUNT_PER_DAY
+                and actions_per_day < daily_cap
             ):
                 was_sent = process_scheduled_row(
                     gmail_service,
