@@ -63,7 +63,6 @@ def validate_email(email):
     norm_emails = []
     for em in email_list:
         trimmed_em = em.strip()
-        print(trimmed_em)
         validated_email = email_validator.validate_email(trimmed_em, check_deliverability=True)
         norm_emails.append(validated_email.normalized)
     # returns comma-sep list, preferred format for gmail
@@ -91,7 +90,7 @@ def validate_row(row):
     status = validated_contact_row.get("Status")
     if not status:
         status = Status.NEW.value
-    elif status == "DRAFTED":
+    elif status in ("DRAFTED", "SCHEDULED"):
         status = Status.NEW.value
 
     try:
